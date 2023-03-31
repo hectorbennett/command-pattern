@@ -15,10 +15,9 @@ class AddEdge:
         self.graph = graph
         self.node1 = node1
         self.node2 = node2
-    
+
     def execute(self):
         self.graph.add_edge(self.node1, self.node2)
 
     def rollback(self):
         self.graph.remove_edge(self.node1, self.node2)
-

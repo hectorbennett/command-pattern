@@ -8,7 +8,7 @@ class Graph:
 
     def remove_node(self, node):
         self.nodes.remove(node)
-    
+
     def add_edge(self, node1, node2):
         self.edges.add((node1, node2))
 
