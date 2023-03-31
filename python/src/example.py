@@ -31,19 +31,19 @@ history.execute()
 assert history.revision == 3
 assert graph.edges == {((0, 0), (1, 1))}
 
-# undo the last action
+# Undo the last action
 history.undo()
 assert history.revision == 2
 assert graph.edges == set()
 assert len(history.history) == 3
 
-# redo the last action
+# Redo the last action
 history.redo()
 assert history.revision == 3
 assert graph.edges == {((0, 0), (1, 1))}
 assert len(history.history) == 3
 
-# undo the last action and perform a new action, rewriting the history
+# Undo the last action and perform a new action, rewriting the history
 history.undo()
 history.append(AddNode(graph, (2, 2)))
 history.execute()

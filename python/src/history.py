@@ -16,35 +16,35 @@ class History:
         # Add a command to the history
         self.history.append(command)
 
-        # move forward one step in the history
+        # Move forward one step in the history
         self.revision += 1
 
     def execute(self):
-        # execute all the methods that have not yet been executed
+        # Execute all the methods that have not yet been executed
         for i in range(self.cursor, self.revision):
             self.history[i].execute()
+
+        # Move the cursor forward
         self.cursor = self.revision
 
     def undo(self):
         if not self.history:
             return
 
-        # Move the cursor back 1
+        # Move back 1 revision
         self.revision = max(0, self.revision - 1)
-
-        # undo the current command
-        self.history[self.revision].rollback()
-
         self.cursor = self.revision
+
+        # Undo the current command
+        self.history[self.revision].rollback()
 
     def redo(self):
         if self.revision == len(self.history):
             return
 
-        # redo the current command
+        # Redo the current command
         self.history[self.revision].execute()
 
-        # Move forwards (again) to where we were in history
+        # Move forward 1 revision (again) to where we previously were in history
         self.revision += 1
-
         self.cursor = self.revision
