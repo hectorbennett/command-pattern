@@ -9,6 +9,10 @@ The Command Pattern is especially useful when developing applications that requi
 
 Although Python and Rust have different implementations of the Command Pattern, the underlying principles remain consistent. We will demonstrate these principles using a brief Python example before diving into Rust, where we need to take additional steps to satisfy the Rust borrow checker and lifetimes.
 
+## Python example
+
+In this python example we can create a Graph object and fill it with nodes and connect them with Edges
+
 ```python
 # python/src/test.py
 
