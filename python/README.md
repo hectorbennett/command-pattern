@@ -1,5 +1,5 @@
 # Python command pattern
 
 ```
-$ python ./src/test.py
+$ python ./src/example.py
 ```

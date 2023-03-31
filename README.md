@@ -3,7 +3,7 @@
 
 I'm currently developing a pixel editor using Rust and WebAssembly. One of the key functionalities that I need to implement is undo/redo. To achieve this, I'll be utilizing the Command Pattern.
 
-The Command Pattern is a powerful software design pattern that allows instructions to be encapsulated as objects, each containing all the necessary data to execute a specific command. This approach differs from the traditional method of issuing instructions as simple function calls, as commands can now be queued and executed at a later time.
+The Command Pattern is a software design pattern that allows instructions to be encapsulated as objects, each containing all the necessary data to execute a specific command. This approach differs from the traditional method of issuing instructions as simple function calls, as commands can now be queued and executed at a later time.
 
 The Command Pattern is especially useful when developing applications that require undo/redo functionality, as it enables us to store a history of commands along with both execute and rollback methods that allow us to move forwards and backwards through the command history.
 
@@ -11,10 +11,10 @@ Although Python and Rust have different implementations of the Command Pattern, 
 
 ## Python example
 
-In this python example we can create a Graph object and fill it with nodes and connect them with Edges
+In this tutorial, we will use a simple Graph object containing nodes and edges to illustrate the Command Pattern. Here is an example of the pattern in action:
 
 ```python
-# python/src/test.py
+# python/src/example.py
 
 from graph import Graph
 from history import History
