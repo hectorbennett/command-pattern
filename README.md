@@ -1,2 +1,161 @@
-# command-pattern
-Experiments with the command pattern
+# Implementing the command pattern in Python and Rust
+
+I'm writing a program in Rust in which I want to implement the command pattern.
+
+The command pattern takes instructions that would usually be issued as functions, and stores them as distinct objects with internal rollback/execute methods, allowing you to easily implement undo/redo functionality.
+
+I'm better at python than I am Rust, so to get started here's a simple example written in Rust:
+
+```python
+# python/src/test.py
+
+from graph import Graph
+from history import History
+from commands import AddNode, AddEdge
+
+graph = Graph()
+
+history = History()
+
+assert history.revision == 0
+
+# Add a node to the graph at (0, 0)
+history.append(AddNode(graph, (0, 0)))
+assert history.revision == 1
+assert graph.nodes == {(0, 0)}
+
+# Add a node to the graph at (1, 1)
+history.append(AddNode(graph, (1, 1)))
+assert history.revision == 2
+assert graph.nodes == {(0, 0), (1, 1)}
+
+# Connect the two nodes into a vertex
+history.append(AddEdge(graph, (0, 0), (1, 1)))
+assert history.revision == 3
+assert graph.edges == {((0, 0), (1, 1))}
+
+# undo the last action
+history.undo()
+assert history.revision == 2
+assert graph.edges == set()
+
+# redo the last action
+history.redo()
+assert history.revision == 3
+assert graph.edges == {((0, 0), (1, 1))}
+
+# undo the last action and perform a new action, rewriting the history
+history.undo()
+history.append(AddNode(graph, (2, 2)))
+assert history.revision == 3
+assert graph.nodes == {(0, 0), (1, 1), (2, 2)}
+assert graph.edges == set()
+
+```
+
+The History instance keeps a log of each action and also instructions on how to revert them. 
+
+```python
+# python/src/history.py
+
+class History:
+
+    def __init__(self):
+        # A log of all the commands in their execution order
+        self.history = []
+
+        # The position in the history we want to execute to
+        self.revision = 0
+
+    def append(self, command):
+        # Destroy anything ahead of the current revision
+        self.history = self.history[0:self.revision]
+        
+        # Add a command to the history
+        self.history.append(command)
+
+        # Move forward one step in the history
+        self.revision += 1
+
+        # Execute the function
+        command.execute()
+    
+    def undo(self):
+        if not self.history:
+            return
+
+        # Move the cursor back 1
+        self.revision = max(0, self.revision - 1)
+
+        # Undo the current command
+        self.history[self.revision].rollback()
+
+    def redo(self):
+        if self.revision == len(self.history):
+            return
+
+        # Redo the current command
+        self.history[self.revision].execute()
+
+        # Move forwards (again) to where we were in history
+        self.revision += 1
+
+```
+
+Commands offer `execute()` and `rollback()` methods that instruct the history instance how to move forwards and backwards through the commands.
+
+```python
+# python/src/commands.py
+
+class AddNode:
+    def __init__(self, graph, node):
+        self.graph = graph
+        self.node = node
+
+    def execute(self):
+        self.graph.add_node(self.node)
+
+    def rollback(self):
+        self.graph.remove_node(self.node)
+
+
+class AddEdge:
+    def __init__(self, graph, node1, node2):
+        self.graph = graph
+        self.node1 = node1
+        self.node2 = node2
+    
+    def execute(self):
+        self.graph.add_edge(self.node1, self.node2)
+
+    def rollback(self):
+        self.graph.remove_edge(self.node1, self.node2)
+
+```
+
+And finally the graph itself is built very simply
+
+```python
+# python/src/graph.py
+
+class Graph:
+    def __init__(self):
+        self.nodes = set()
+        self.edges = set()
+
+    def add_node(self, node):
+        self.nodes.add(node)
+
+    def remove_node(self, node):
+        self.nodes.remove(node)
+    
+    def add_edge(self, node1, node2):
+        self.edges.add((node1, node2))
+
+    def remove_edge(self, node1, node2):
+        self.edges.remove((node1, node2))
+
+```
+
+
+# TODO: Rust
