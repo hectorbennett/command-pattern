@@ -21,42 +21,39 @@ from history import History
 from commands import AddNode, AddEdge
 
 graph = Graph()
-
 history = History()
-
-assert history.revision == 0
 
 # Add a node to the graph at (0, 0)
 history.append(AddNode(graph, (0, 0)))
-assert history.revision == 1
-assert graph.nodes == {(0, 0)}
 
 # Add a node to the graph at (1, 1)
 history.append(AddNode(graph, (1, 1)))
-assert history.revision == 2
+
+# Check that the graph is still unchanged
+assert graph.nodes == set()
+
+# Execute the commands and check that the changes have now been made
+history.execute()
 assert graph.nodes == {(0, 0), (1, 1)}
 
 # Connect the two nodes into a vertex
 history.append(AddEdge(graph, (0, 0), (1, 1)))
-assert history.revision == 3
+history.execute()
 assert graph.edges == {((0, 0), (1, 1))}
 
 # undo the last action
 history.undo()
-assert history.revision == 2
 assert graph.edges == set()
 
 # redo the last action
 history.redo()
-assert history.revision == 3
 assert graph.edges == {((0, 0), (1, 1))}
 
 # undo the last action and perform a new action, rewriting the history
 history.undo()
 history.append(AddNode(graph, (2, 2)))
-assert history.revision == 3
+history.execute()
 assert graph.nodes == {(0, 0), (1, 1), (2, 2)}
-assert graph.edges == set()
 
 ```
 
@@ -66,27 +63,32 @@ The History instance keeps a log of each action and also instructions on how to 
 # python/src/history.py
 
 class History:
-
     def __init__(self):
         # A log of all the commands in their execution order
         self.history = []
+
+        # Where we have executed up to so far
+        self.cursor = 0
 
         # The position in the history we want to execute to
         self.revision = 0
 
     def append(self, command):
         # Destroy anything ahead of the current revision
-        self.history = self.history[0:self.revision]
-        
+        self.history = self.history[0 : self.revision]
+
         # Add a command to the history
         self.history.append(command)
 
-        # Move forward one step in the history
+        # move forward one step in the history
         self.revision += 1
 
-        # Execute the function
-        command.execute()
-    
+    def execute(self):
+        # execute all the methods that have not yet been executed
+        for i in range(self.cursor, self.revision):
+            self.history[i].execute()
+        self.cursor = self.revision
+
     def undo(self):
         if not self.history:
             return
@@ -94,18 +96,22 @@ class History:
         # Move the cursor back 1
         self.revision = max(0, self.revision - 1)
 
-        # Undo the current command
+        # undo the current command
         self.history[self.revision].rollback()
+
+        self.cursor = self.revision
 
     def redo(self):
         if self.revision == len(self.history):
             return
 
-        # Redo the current command
+        # redo the current command
         self.history[self.revision].execute()
 
         # Move forwards (again) to where we were in history
         self.revision += 1
+
+        self.cursor = self.revision
 
 ```
 
