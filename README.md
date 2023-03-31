@@ -1,10 +1,13 @@
-# Implementing the command pattern in Python and Rust
+## Implementing the Command Pattern and undo/redo functionality in both Python and Rust
 
-I'm writing a program in Rust in which I want to implement the command pattern.
 
-The command pattern takes instructions that would usually be issued as functions, and stores them as distinct objects with internal rollback/execute methods, allowing you to easily implement undo/redo functionality.
+I'm currently developing a pixel editor using Rust and WebAssembly. One of the key functionalities that I need to implement is undo/redo. To achieve this, I'll be utilizing the Command Pattern.
 
-I'm better at python than I am Rust, so to get started here's a simple example written in Rust:
+The Command Pattern is a powerful software design pattern that allows instructions to be encapsulated as objects, each containing all the necessary data to execute a specific command. This approach differs from the traditional method of issuing instructions as simple function calls, as commands can now be queued and executed at a later time.
+
+The Command Pattern is especially useful when developing applications that require undo/redo functionality, as it enables us to store a history of commands along with both execute and rollback methods that allow us to move forwards and backwards through the command history.
+
+Although Python and Rust have different implementations of the Command Pattern, the underlying principles remain consistent. We will demonstrate these principles using a brief Python example before diving into Rust, where we need to take additional steps to satisfy the Rust borrow checker and lifetimes.
 
 ```python
 # python/src/test.py
@@ -157,5 +160,4 @@ class Graph:
 
 ```
 
-
-# TODO: Rust
+In part 2 we will be converting this code to rust and finding nice rusty ways to get around the borrow checker.
