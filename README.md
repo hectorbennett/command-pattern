@@ -1,6 +1,8 @@
 ## Implementing the Command Pattern and undo/redo functionality in both Python and Rust
 
 
+NOTE: This is a WIP - I'll publish this outside of github once it's finished.
+
 I'm currently developing a pixel editor using Rust and WebAssembly. One of the key functionalities that I need to implement is undo/redo. To achieve this, I'll be utilizing the Command Pattern.
 
 The Command Pattern is a design pattern that allows instructions to be encapsulated as objects, each containing all the necessary data to execute a specific command. This approach differs from the traditional method of issuing instructions as simple function calls, as commands can now be queued and executed at a later time.
@@ -172,7 +174,7 @@ class Graph:
 
 ## Implementing in Rust
 
-Some parts of the above code can be translated from python very straightforwardly, for example the Graph class
+Some parts of the above code can be translated from python very straightforwardly, for example the Graph class is adapted without any unexpected changes.
 
 ```rust
 // rust/src/graph.rs
@@ -209,4 +211,65 @@ impl Graph {
         self.edges.retain(|&n| n != [node1, node2]);
     }
 }
+```
+
+Command objects are implemented similarly,
+
+```rust
+// rust/src/commands.rs
+
+use crate::graph::{Graph, Node};
+
+pub trait Command {
+    fn execute(&self);
+    fn rollback(&self);
+}
+
+pub struct AddNode {
+    graph: Graph,
+    node: Node,
+}
+
+impl AddNode {
+    pub fn new(graph: Graph, node: Node) -> AddNode {
+        AddNode { graph, node }
+    }
+}
+
+impl Command for AddNode {
+    fn execute(&self) {
+        self.graph.add_node(self.node);
+    }
+
+    fn rollback(&self) {
+        self.graph.remove_node(self.node);
+    }
+}
+
+pub struct AddEdge {
+    graph: Graph,
+    node1: Node,
+    node2: Node,
+}
+
+impl AddEdge {
+    pub fn new(graph: Graph, node1: Node, node2: Node) -> AddEdge {
+        AddEdge {
+            graph,
+            node1,
+            node2,
+        }
+    }
+}
+
+impl Command for AddEdge {
+    fn execute(&self) {
+        self.graph.add_edge(self.node1, self.node2);
+    }
+
+    fn rollback(&self) {
+        self.graph.remove_edge(self.node1, self.node2);
+    }
+}
+
 ```
