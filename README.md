@@ -170,4 +170,43 @@ class Graph:
 
 ```
 
-In part 2 we will be converting this code to rust and finding nice rusty ways to get around the borrow checker.
+## Implementing in Rust
+
+Some parts of the above code can be translated from python very straightforwardly, for example the Graph class
+
+```rust
+// rust/src/graph.rs
+
+pub type Node = [u8; 2];
+pub type Edge = [Node; 2];
+
+pub struct Graph {
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+}
+
+impl Graph {
+    pub fn new() -> Graph {
+        Graph {
+            nodes: vec![],
+            edges: vec![],
+        }
+    }
+
+    pub fn add_node(&mut self, node: Node) {
+        self.nodes.push(node);
+    }
+
+    pub fn remove_node(&mut self, node: Node) {
+        self.nodes.retain(|&n| n != node);
+    }
+
+    pub fn add_edge(&mut self, node1: Node, node2: Node) {
+        self.edges.push([node1, node2]);
+    }
+
+    pub fn remove_edge(&mut self, node1: Node, node2: Node) {
+        self.edges.retain(|&n| n != [node1, node2]);
+    }
+}
+```
