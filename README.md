@@ -198,27 +198,46 @@ impl Graph {
         self.nodes.push(node);
     }
 
-    pub fn remove_node(&mut self, node: Node) {
-        self.nodes.retain(|&n| n != node);
-    }
-
-    pub fn add_edge(&mut self, node1: Node, node2: Node) {
-        self.edges.push([node1, node2]);
-    }
-
-    pub fn remove_edge(&mut self, node1: Node, node2: Node) {
-        self.edges.retain(|&n| n != [node1, node2]);
-    }
+    etc.
 }
 ```
 
-For command objects, we create a trait 'Command' with execute and rollback
-methods and we implement this trait on each of the commands we wish to write.
+The Command class is the first place we need to start making some changes and think about how we manage memory. The borrow checker in rust is going to be upset if we try and store a reference to the graph object within each command object.
+
+For example if we were to start implementing an example Command like this:
 
 ```rust
-// rust/src/commands.rs
+pub struct AddNode {
+    graph: &Graph,
+    node: Node,
+}
+```
 
+Rust will have two issues
+
+The first issue is that rust will throw a 'missing lifetime specififier' error. The second issue is that we will struggle to satisfy the borrow checker as we add commands to the history that reference the same graph object.
+
+To get around these problems, we will instead store the graph inside a RefCell, and 
+
+Now if we compile our code, we get a 'missing lifetime specififier' error. Our Command class is currently pointing to a reference of a graph object.
+
+```
+9 |     graph: &Graph,
+  |            ^ expected named lifetime parameter
+```
+
+To avoid using lifetime annotations, we are going to store our graph within a smart pointer. The rust docs contain some useful information on this exact circumstance, and their recomendation is to store our Command inside a RefCell inside an Rc. transform our commands to point to a graph object within a RefCell within a Rc. 
+
+If we were writing a function that utilises multi-threading than we would consider using an Arc and a Mutex instead.
+
+https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
+
+Taking this all into consideration, our Commands file will look something like the following. Note the use of a Command trait. This will be useful when we want to pass in a generic command object to the history class.
+
+```rust 
 use crate::graph::{Graph, Node};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub trait Command {
     fn execute(&self);
@@ -226,98 +245,48 @@ pub trait Command {
 }
 
 pub struct AddNode {
-    graph: Graph,
+    graph: Rc<RefCell<Graph>>,
     node: Node,
 }
 
 impl AddNode {
-    pub fn new(graph: Graph, node: Node) -> AddNode {
+    pub fn new(graph: Rc<RefCell<Graph>>, node: Node) -> AddNode {
         AddNode { graph, node }
     }
 }
 
 impl Command for AddNode {
     fn execute(&self) {
-        self.graph.add_node(self.node);
+        self.graph.borrow_mut().add_node(self.node);
     }
 
     fn rollback(&self) {
-        self.graph.remove_node(self.node);
-    }
-}
-
-pub struct AddEdge {
-    graph: Graph,
-    node1: Node,
-    node2: Node,
-}
-
-impl AddEdge {
-    pub fn new(graph: Graph, node1: Node, node2: Node) -> AddEdge {
-        AddEdge {
-            graph,
-            node1,
-            node2,
-        }
-    }
-}
-
-impl Command for AddEdge {
-    fn execute(&self) {
-        self.graph.add_edge(self.node1, self.node2);
-    }
-
-    fn rollback(&self) {
-        self.graph.remove_edge(self.node1, self.node2);
+        self.graph.borrow_mut().remove_node(self.node);
     }
 }
 
 ```
 
-Once we start writing the history class, we need to start making some changes
-to accomodate for the way that Rust handles traits. Below is a (faulty) version of the history class translated from python.
+Now, to start building the History class. If we were to translate it directly from the python, we would start by writing something like this:
 
 ```rust
-// rust/src/history.rs
-
-use std::cmp;
-
-use crate::commands::Command;
 
 pub struct History {
-    // A log of all the commands in their execution order
     pub history: Vec<Command>,
 
-    // Where we have executed up to so far
-    pub cursor: usize,
-
-    // The position in the history we want to execute to
-    pub revision: usize,
+    ...
 }
 
 impl History {
-    pub fn new() -> History {
-        History {
-            history: vec![],
-            cursor: 0,
-            revision: 0,
-        }
-    }
-
+    ...
     pub fn append(&mut self, command: Command) {
-        // Destroy anything ahead of the current revision
-        self.history.truncate(self.revision);
-
-        // Add a command to the history
-        self.history.push(command);
-
-        // Move forward one step in the history
-        self.revision += 1;
+        ...
     }
+    ...
 }
 ```
 
-If we attempt to compile the above, we will get the following error code:
+If we were to attempt to compile the above, we will get the following error code:
 
 https://github.com/rust-lang/rust/blob/master/compiler/rustc_error_codes/src/error_codes/E0782.md
 
@@ -325,7 +294,7 @@ which tells us
 
 'Trait objects are a way to call methods on types that are not known until runtime but conform to some trait. Trait objects should be formed with `Box<dyn Foo>`.'
 
-So we rewrite the above as
+So in light of this helpful advice from the rust compiler, we will rewrite the above as
 
 ```rust
 pub struct History {
@@ -346,16 +315,26 @@ impl History {
 
 ```
 
-Now if we compile our code, we get a 'missing lifetime specififier' error. Our Command class is currently pointing to a reference of a graph object.
+Now we can put it all together. Notice how we clone the graph Rc each time - don't worry, this isn't creating a new graph each time. What it is doing is duplicating the Rc to create a new 'owner' for the graph object. Rc keeps track of the number of owners (reference counts) and frees the memory as soon as the count drops to zero.
+
+```rust
+let graph = Rc::new(RefCell::new(Graph::new()));
+let mut history: History = History::new();
+
+// Add a node to the graph at (0, 0)
+history.append(Box::new(AddNode::new(graph.clone(), [0, 0])));
+
+// Add a node to the graph at (1, 1)
+history.append(Box::new(AddNode::new(graph.clone(), [1, 1])));
+
+// Check that the graph is still unchanged
+assert_eq!(graph.borrow().nodes, vec![]);
+
+// Execute the commands and check that the changes have now been made
+history.execute();
+assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1]]);
 
 ```
-9 |     graph: &Graph,
-  |            ^ expected named lifetime parameter
-```
 
-To avoid using lifetime annotations, we are going to transform our commands to point to a graph object within a RefCell within a Rc.
-
-https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
-
-So we rewrite our commands to point to a 
+Thanks for reading. I hope you've found it useful - Some more detailed source code can be found in this repo: <repo url here>.
 
