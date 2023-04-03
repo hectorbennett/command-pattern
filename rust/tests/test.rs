@@ -1,3 +1,9 @@
+use std::{cell::RefCell, rc::Rc};
+
+use command_pattern::commands::{AddEdge, AddNode};
+use command_pattern::graph::{Edge, Graph, Node};
+use command_pattern::history::History;
+
 #[test]
 fn test() {
     let graph = Rc::new(RefCell::new(Graph::new()));
@@ -22,14 +28,12 @@ fn test() {
     assert_eq!(history.cursor, 2);
     assert_eq!(history.revision, 2);
     assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1]]);
-    println!("{:?}", graph.borrow().nodes);
 
     // Connect the two nodes into a vertex
     history.append(Box::new(AddEdge::new(graph.clone(), [0, 0], [1, 1])));
     history.execute();
     assert_eq!(history.revision, 3);
     assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
-    println!("{:?}", graph.borrow().edges);
 
     // Undo the last action
     history.undo();
@@ -42,7 +46,6 @@ fn test() {
     history.redo();
     assert_eq!(history.revision, 3);
     assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
-    println!("{:?}", graph.borrow().edges);
 
     // Undo the last action and perform a new action, rewriting the history
     history.undo();
@@ -52,6 +55,4 @@ fn test() {
     assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1], [2, 2]]);
     assert_eq!(graph.borrow().edges, empty_edge_vec);
     assert_eq!(history.history.len(), 3);
-
-    println!("{:?}", graph);
 }
