@@ -1,4 +1,6 @@
 use crate::graph::{Graph, Node};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub trait Command {
     fn execute(&self);
@@ -6,34 +8,34 @@ pub trait Command {
 }
 
 pub struct AddNode {
-    graph: Graph,
+    graph: Rc<RefCell<Graph>>,
     node: Node,
 }
 
 impl AddNode {
-    pub fn new(graph: Graph, node: Node) -> AddNode {
+    pub fn new(graph: Rc<RefCell<Graph>>, node: Node) -> AddNode {
         AddNode { graph, node }
     }
 }
 
 impl Command for AddNode {
     fn execute(&self) {
-        self.graph.add_node(self.node);
+        self.graph.borrow_mut().add_node(self.node);
     }
 
     fn rollback(&self) {
-        self.graph.remove_node(self.node);
+        self.graph.borrow_mut().remove_node(self.node);
     }
 }
 
 pub struct AddEdge {
-    graph: Graph,
+    graph: Rc<RefCell<Graph>>,
     node1: Node,
     node2: Node,
 }
 
 impl AddEdge {
-    pub fn new(graph: Graph, node1: Node, node2: Node) -> AddEdge {
+    pub fn new(graph: Rc<RefCell<Graph>>, node1: Node, node2: Node) -> AddEdge {
         AddEdge {
             graph,
             node1,
@@ -44,10 +46,10 @@ impl AddEdge {
 
 impl Command for AddEdge {
     fn execute(&self) {
-        self.graph.add_edge(self.node1, self.node2);
+        self.graph.borrow_mut().add_edge(self.node1, self.node2);
     }
 
     fn rollback(&self) {
-        self.graph.remove_edge(self.node1, self.node2);
+        self.graph.borrow_mut().remove_edge(self.node1, self.node2);
     }
 }

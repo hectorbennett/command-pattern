@@ -1,6 +1,5 @@
 ## Implementing the Command Pattern and undo/redo functionality in both Python and Rust
 
-
 NOTE: This is a WIP - I'll publish this outside of github once it's finished.
 
 I'm currently developing a pixel editor using Rust and WebAssembly. One of the key functionalities that I need to implement is undo/redo. To achieve this, I'll be utilizing the Command Pattern.
@@ -9,7 +8,7 @@ The Command Pattern is a design pattern that allows instructions to be encapsula
 
 The Command Pattern is especially useful when developing applications that require undo/redo functionality, as it enables us to store a history of commands along with both execute and rollback methods that allow us to move forwards and backwards through the command history.
 
-Although Python and Rust have different implementations of the Command Pattern, the underlying principles remain consistent. We will demonstrate these principles using a brief Python example before diving into Rust, where we need to take additional steps to satisfy the Rust borrow checker and lifetimes.
+Although Python and Rust have different implementations of the Command Pattern, the underlying principles remain consistent. We will demonstrate these principles using a brief Python example before diving into Rust, where we need to take additional steps to handle memory allocation and satisfy the Rust borrow checker and lifetimes.
 
 ## Python example
 
@@ -59,7 +58,7 @@ assert graph.nodes == {(0, 0), (1, 1), (2, 2)}
 
 ```
 
-The History instance keeps a log of each action and also instructions on how to revert them. 
+The History instance keeps a log of each action and also instructions on how to revert them.
 
 ```python
 # python/src/history.py
@@ -139,7 +138,7 @@ class AddEdge:
         self.graph = graph
         self.node1 = node1
         self.node2 = node2
-    
+
     def execute(self):
         self.graph.add_edge(self.node1, self.node2)
 
@@ -163,7 +162,7 @@ class Graph:
 
     def remove_node(self, node):
         self.nodes.remove(node)
-    
+
     def add_edge(self, node1, node2):
         self.edges.add((node1, node2))
 
@@ -213,7 +212,8 @@ impl Graph {
 }
 ```
 
-Command objects are implemented similarly,
+For command objects, we create a trait 'Command' with execute and rollback
+methods and we implement this trait on each of the commands we wish to write.
 
 ```rust
 // rust/src/commands.rs
@@ -273,3 +273,89 @@ impl Command for AddEdge {
 }
 
 ```
+
+Once we start writing the history class, we need to start making some changes
+to accomodate for the way that Rust handles traits. Below is a (faulty) version of the history class translated from python.
+
+```rust
+// rust/src/history.rs
+
+use std::cmp;
+
+use crate::commands::Command;
+
+pub struct History {
+    // A log of all the commands in their execution order
+    pub history: Vec<Command>,
+
+    // Where we have executed up to so far
+    pub cursor: usize,
+
+    // The position in the history we want to execute to
+    pub revision: usize,
+}
+
+impl History {
+    pub fn new() -> History {
+        History {
+            history: vec![],
+            cursor: 0,
+            revision: 0,
+        }
+    }
+
+    pub fn append(&mut self, command: Command) {
+        // Destroy anything ahead of the current revision
+        self.history.truncate(self.revision);
+
+        // Add a command to the history
+        self.history.push(command);
+
+        // Move forward one step in the history
+        self.revision += 1;
+    }
+}
+```
+
+If we attempt to compile the above, we will get the following error code:
+
+https://github.com/rust-lang/rust/blob/master/compiler/rustc_error_codes/src/error_codes/E0782.md
+
+which tells us
+
+'Trait objects are a way to call methods on types that are not known until runtime but conform to some trait. Trait objects should be formed with `Box<dyn Foo>`.'
+
+So we rewrite the above as
+
+```rust
+pub struct History {
+    pub history: Vec<Box<dyn Command>>,
+    ...
+}
+
+impl History {
+
+    ...
+
+    pub fn append(&mut self, command: Box<dyn Command>) {
+        ...
+    }
+
+    ...
+}
+
+```
+
+Now if we compile our code, we get a 'missing lifetime specififier' error. Our Command class is currently pointing to a reference of a graph object.
+
+```
+9 |     graph: &Graph,
+  |            ^ expected named lifetime parameter
+```
+
+To avoid using lifetime annotations, we are going to transform our commands to point to a graph object within a RefCell within a Rc.
+
+https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
+
+So we rewrite our commands to point to a 
+

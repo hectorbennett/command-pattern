@@ -1,6 +1,7 @@
 pub type Node = [u8; 2];
 pub type Edge = [Node; 2];
 
+#[derive(Debug)]
 pub struct Graph {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,

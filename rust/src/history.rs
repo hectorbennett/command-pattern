@@ -4,7 +4,7 @@ use crate::commands::Command;
 
 pub struct History {
     // A log of all the commands in their execution order
-    pub history: Vec<Command>,
+    pub history: Vec<Box<dyn Command>>,
 
     // Where we have executed up to so far
     pub cursor: usize,
@@ -22,7 +22,7 @@ impl History {
         }
     }
 
-    pub fn append(&mut self, command: Command) {
+    pub fn append(&mut self, command: Box<dyn Command>) {
         // Destroy anything ahead of the current revision
         self.history.truncate(self.revision);
 
