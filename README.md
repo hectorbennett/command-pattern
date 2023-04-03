@@ -186,7 +186,7 @@ Although some parts of the above python example can be translated very straighfo
 
 ### Graph struct
 
-Let's start with the Graph struct, which is adapted without any real unexpected changes:
+Let's start with the Graph struct, which is adapted without any major unexpected changes:
 
 ```rust
 // rust/src/graph.rs
@@ -238,7 +238,7 @@ The first problem is that the compiler throws a 'missing lifetime specifier' err
 
 The second issue is that when we come to use these command objects, we will struggle to satisfy the borrow checker. As we continue to append commands to the history, we will be storing new references to the same Graph object, which Rust will not like.
 
-To get around both of these problems, we will store our graph inside a smart pointer and also enable some form of shared mutibility. There are a few ways to do this, but here we will make use of `Rc<T>` and `RefCell<T>`, taking inspiration from the official Rust documentation: https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
+To get around both of these problems, we will store our graph inside a smart pointer and also enable some form of shared mutibility. There are a few ways to do this, but here we will make use of `Rc<T>` and `RefCell<T>`, taking inspiration from the [official Rust documentation](https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable).
 
 Note, as per above the above documentation, that if we wanted this to work in a multi-threaded situation then we could use an `Arc<T>` and a `Mutex<T>` or an `RwLock<T>` 
 
@@ -366,6 +366,6 @@ assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
 
 ```
 
-Notice how we clone `graph` each time - don't worry, this isn't creating a new graph each time. What it is doing is duplicating the `Rc<T>` to create a new 'owner' for the graph object. An `Rc` (or reference counter) keeps track of the number of owners and will free the memory as soon as the count drops to zero.
+Notice how we clone `graph` for every command - don't worry, this isn't creating a new graph each time. What it is doing is duplicating the `Rc<T>` to create a new 'owner' for the graph object. An `Rc` (or reference counter) keeps track of the number of owners and will free the memory as soon as the count drops to zero.
 
-Thanks for reading. I hope you've found it useful - Some more detailed source code can be found in this repo: <repo url here>.
+Hopefully this has been useful and can be adapted easily for your use case. I hope you've found it useful - Some more detailed source code can be found in this repo: <repo url here>.
