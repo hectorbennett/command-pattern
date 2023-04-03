@@ -13,6 +13,12 @@ pub struct History {
     pub revision: usize,
 }
 
+impl Default for History {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl History {
     pub fn new() -> History {
         History {
@@ -44,7 +50,7 @@ impl History {
     }
 
     pub fn undo(&mut self) {
-        if self.history.len() == 0 {
+        if self.history.is_empty() {
             return;
         }
 
