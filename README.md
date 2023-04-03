@@ -173,7 +173,7 @@ class Graph:
 
 ## Implementing in Rust
 
-Some parts of the above code can be translated from python very straightforwardly, for example the Graph class is adapted without any unexpected changes.
+Although some parts of the above python example can be translated very straighforwardly, there are some parts that will require some extra thought. Let's start with the Graph class, which is adapted without any real unexpected changes:
 
 ```rust
 // rust/src/graph.rs
@@ -198,43 +198,38 @@ impl Graph {
         self.nodes.push(node);
     }
 
-    etc.
+    // etc.
 }
 ```
 
-The Command class is the first place we need to start making some changes and think about how we manage memory. The borrow checker in rust is going to be upset if we try and store a reference to the graph object within each command object.
+The Command class is the first place we need to make changes and think about how we manage memory.
 
-For example if we were to start implementing an example Command like this:
+For example, if we implement an example Command like this:
 
 ```rust
+// rust/src/commands.rs
+
 pub struct AddNode {
     graph: &Graph,
     node: Node,
 }
+
+// etc.
 ```
 
-Rust will have two issues
+We run into two problems.
 
-The first issue is that rust will throw a 'missing lifetime specififier' error. The second issue is that we will struggle to satisfy the borrow checker as we add commands to the history that reference the same graph object.
+The first problem is that the compiler throws a 'missing lifetime specifier' error. The compiler recommends in this scenario that we fix this by making lifetime annotations, however, we have another way to solve this.
 
-To get around these problems, we will instead store the graph inside a RefCell, and 
+The second issue is that when we come to use these command objects, we will struggle to satisfy the borrow checker. As we continue to append commands to the history, we will be storing new references to the same Graph object, which Rust will not like.
 
-Now if we compile our code, we get a 'missing lifetime specififier' error. Our Command class is currently pointing to a reference of a graph object.
+To get around both of these problems, we will store our graph inside a smart pointer and also enable some form of shared mutibility. There are a few ways to do this, but here we will make use of `Rc<T>` and `RefCell<T>`, taking inspiration from the official Rust documentation: https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
 
-```
-9 |     graph: &Graph,
-  |            ^ expected named lifetime parameter
-```
-
-To avoid using lifetime annotations, we are going to store our graph within a smart pointer. The rust docs contain some useful information on this exact circumstance, and their recomendation is to store our Command inside a RefCell inside an Rc. transform our commands to point to a graph object within a RefCell within a Rc. 
-
-If we were writing a function that utilises multi-threading than we would consider using an Arc and a Mutex instead.
-
-https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
-
-Taking this all into consideration, our Commands file will look something like the following. Note the use of a Command trait. This will be useful when we want to pass in a generic command object to the history class.
+Note, as per above the above documentation, that if we wanted this to work in a multi-threaded situation then we could use an `Arc<T>` and a `Mutex<T>` or an `RwLock<T>` 
 
 ```rust 
+// rust/src/commands.rs
+
 use crate::graph::{Graph, Node};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -264,6 +259,8 @@ impl Command for AddNode {
         self.graph.borrow_mut().remove_node(self.node);
     }
 }
+
+// etc.
 
 ```
 
@@ -337,4 +334,3 @@ assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1]]);
 ```
 
 Thanks for reading. I hope you've found it useful - Some more detailed source code can be found in this repo: <repo url here>.
-
