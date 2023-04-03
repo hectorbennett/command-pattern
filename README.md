@@ -1,7 +1,5 @@
 ## Implementing the Command Pattern and undo/redo functionality in both Python and Rust
 
-NOTE: This is a WIP - I'll publish this outside of github once it's finished.
-
 I'm currently developing a pixel editor using Rust and WebAssembly. One of the key functionalities that I need to implement is undo/redo. To achieve this, I'll be utilizing the Command Pattern.
 
 The Command Pattern is a design pattern that allows instructions to be encapsulated as objects, each containing all the necessary data to execute a specific command. This approach differs from the traditional method of issuing instructions as simple function calls, as commands can now be queued and executed at a later time.
@@ -12,7 +10,9 @@ Although Python and Rust have different implementations of the Command Pattern, 
 
 ## Python example
 
-In this tutorial, we will use a simple Graph object containing nodes and edges to illustrate the Command Pattern. Here is an example of the pattern in action:
+In this tutorial, we will use a simple [Graph](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)) object containing nodes and edges to illustrate the Command Pattern. Here is an example of the pattern in action:
+
+### Example
 
 ```python
 # python/src/example.py
@@ -58,7 +58,11 @@ assert graph.nodes == {(0, 0), (1, 1), (2, 2)}
 
 ```
 
-The History instance keeps a log of each action and also instructions on how to revert them.
+### History class
+
+
+The History instance keeps a log of each action and also instructions on how to revert them:
+
 
 ```python
 # python/src/history.py
@@ -116,7 +120,10 @@ class History:
 
 ```
 
-Commands offer `execute()` and `rollback()` methods that instruct the history instance how to move forwards and backwards through the commands.
+### Command class
+
+Commands offer `execute()` and `rollback()` methods that instruct the history instance how to move forwards and backwards through the commands:
+
 
 ```python
 # python/src/commands.py
@@ -147,7 +154,9 @@ class AddEdge:
 
 ```
 
-And finally the graph itself is built very simply
+### Graph class
+
+And finally the graph itself is built very simply, with some methods for adding and removing nodes and edges:
 
 ```python
 # python/src/graph.py
@@ -173,7 +182,11 @@ class Graph:
 
 ## Implementing in Rust
 
-Although some parts of the above python example can be translated very straighforwardly, there are some parts that will require some extra thought. Let's start with the Graph class, which is adapted without any real unexpected changes:
+Although some parts of the above python example can be translated very straighforwardly, there are some parts that will require some extra thought. 
+
+### Graph struct
+
+Let's start with the Graph struct, which is adapted without any real unexpected changes:
 
 ```rust
 // rust/src/graph.rs
@@ -202,7 +215,9 @@ impl Graph {
 }
 ```
 
-The Command class is the first place we need to make changes and think about how we manage memory.
+### Command struct
+
+The Command struct is the first place we need to make changes and think about how we manage memory.
 
 For example, if we implement an example Command like this:
 
@@ -219,13 +234,15 @@ pub struct AddNode {
 
 We run into two problems.
 
-The first problem is that the compiler throws a 'missing lifetime specifier' error. The compiler recommends in this scenario that we fix this by making lifetime annotations, however, we have another way to solve this.
+The first problem is that the compiler throws a 'missing lifetime specifier' error. The compiler recommends in this scenario that we fix this by making lifetime annotations, however, we have another way to solve this (which we will get into in a bit).
 
 The second issue is that when we come to use these command objects, we will struggle to satisfy the borrow checker. As we continue to append commands to the history, we will be storing new references to the same Graph object, which Rust will not like.
 
 To get around both of these problems, we will store our graph inside a smart pointer and also enable some form of shared mutibility. There are a few ways to do this, but here we will make use of `Rc<T>` and `RefCell<T>`, taking inspiration from the official Rust documentation: https://doc.rust-lang.org/std/cell/index.html#introducing-mutability-inside-of-something-immutable
 
 Note, as per above the above documentation, that if we wanted this to work in a multi-threaded situation then we could use an `Arc<T>` and a `Mutex<T>` or an `RwLock<T>` 
+
+Here is an example of what our commands file looks like now:
 
 ```rust 
 // rust/src/commands.rs
@@ -264,13 +281,15 @@ impl Command for AddNode {
 
 ```
 
-Now, to start building the History class. If we were to translate it directly from the python, we would start by writing something like this:
+### History struct
+
+Now, to start building the History struct. If we were to translate it directly from the python example, we would start by writing something like this:
 
 ```rust
+// rust/src/history.rs
 
 pub struct History {
     pub history: Vec<Command>,
-
     ...
 }
 
@@ -283,38 +302,39 @@ impl History {
 }
 ```
 
-If we were to attempt to compile the above, we will get the following error code:
+If we attempt to compile something like the above, we will get [an error](https://github.com/rust-lang/rust/blob/master/compiler/rustc_error_codes/src/error_codes/E0782.md) about Trait objects and the dyn keyword, which informs us:
 
-https://github.com/rust-lang/rust/blob/master/compiler/rustc_error_codes/src/error_codes/E0782.md
-
-which tells us
-
-'Trait objects are a way to call methods on types that are not known until runtime but conform to some trait. Trait objects should be formed with `Box<dyn Foo>`.'
+```rust
+Trait objects are a way to call methods on types that are not known until runtime but conform to some trait. Trait objects should be formed with `Box<dyn Foo>`.
+```
 
 So in light of this helpful advice from the rust compiler, we will rewrite the above as
 
 ```rust
+// rust/src/history.rs
+
 pub struct History {
     pub history: Vec<Box<dyn Command>>,
     ...
 }
 
 impl History {
-
     ...
-
     pub fn append(&mut self, command: Box<dyn Command>) {
         ...
     }
-
     ...
 }
 
 ```
 
-Now we can put it all together. Notice how we clone the graph Rc each time - don't worry, this isn't creating a new graph each time. What it is doing is duplicating the Rc to create a new 'owner' for the graph object. Rc keeps track of the number of owners (reference counts) and frees the memory as soon as the count drops to zero.
+### Rust command pattern in action
+
+Now we can put it all together.
 
 ```rust
+// rust/tests/test.rs
+
 let graph = Rc::new(RefCell::new(Graph::new()));
 let mut history: History = History::new();
 
@@ -331,6 +351,21 @@ assert_eq!(graph.borrow().nodes, vec![]);
 history.execute();
 assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1]]);
 
+// Connect the two nodes into a vertex
+history.append(Box::new(AddEdge::new(graph.clone(), [0, 0], [1, 1])));
+history.execute();
+assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
+
+// Undo the last action
+history.undo();
+assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
+
+// Redo the last action
+history.redo();
+assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
+
 ```
+
+Notice how we clone `graph` each time - don't worry, this isn't creating a new graph each time. What it is doing is duplicating the `Rc<T>` to create a new 'owner' for the graph object. An `Rc` (or reference counter) keeps track of the number of owners and will free the memory as soon as the count drops to zero.
 
 Thanks for reading. I hope you've found it useful - Some more detailed source code can be found in this repo: <repo url here>.
