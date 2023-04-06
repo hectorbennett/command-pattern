@@ -12,10 +12,10 @@ fn test() {
     assert_eq!(history.revision, 0);
 
     // Add a node to the graph at (0, 0)
-    history.append(Box::new(AddNode::new(graph.clone(), [0, 0])));
+    history.append(Box::new(AddNode::new(Rc::clone(&graph), [0, 0])));
 
     // Add a node to the graph at (1, 1)
-    history.append(Box::new(AddNode::new(graph.clone(), [1, 1])));
+    history.append(Box::new(AddNode::new(Rc::clone(&graph), [1, 1])));
 
     // Check that the graph is still unchanged
     assert_eq!(history.cursor, 0);
@@ -30,7 +30,7 @@ fn test() {
     assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1]]);
 
     // Connect the two nodes into a vertex
-    history.append(Box::new(AddEdge::new(graph.clone(), [0, 0], [1, 1])));
+    history.append(Box::new(AddEdge::new(Rc::clone(&graph), [0, 0], [1, 1])));
     history.execute();
     assert_eq!(history.revision, 3);
     assert_eq!(graph.borrow().edges, [[[0, 0], [1, 1]]]);
@@ -49,7 +49,7 @@ fn test() {
 
     // Undo the last action and perform a new action, rewriting the history
     history.undo();
-    history.append(Box::new(AddNode::new(graph.clone(), [2, 2])));
+    history.append(Box::new(AddNode::new(Rc::clone(&graph), [2, 2])));
     history.execute();
     assert_eq!(history.revision, 3);
     assert_eq!(graph.borrow().nodes, [[0, 0], [1, 1], [2, 2]]);
